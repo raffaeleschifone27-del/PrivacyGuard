@@ -8,11 +8,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: PrivacyGuard
     steps:
       - uses: actions/checkout@v4
+
+      - name: Trova il progetto
+        id: find
+        run: |
+          find . -maxdepth 4 -not -path './.git*' | sort
+          S=$(find . -name settings.gradle.kts -not -path './.git/*' | head -n 1)
+          if [ -z "$S" ]; then
+            echo "settings.gradle.kts NON trovato"
+            exit 1
+          fi
+          echo "dir=$(dirname "$S")" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-java@v4
         with:
@@ -22,12 +30,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: 8.7
-          build-root-directory: PrivacyGuard
+          build-root-directory: ${{ steps.find.outputs.dir }}
 
       - name: Compila APK debug
+        working-directory: ${{ steps.find.outputs.dir }}
         run: gradle assembleDebug --no-daemon
 
       - uses: actions/upload-artifact@v4
         with:
           name: PrivacyGuard-apk
-          path: PrivacyGuard/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ steps.find.outputs.dir }}/app/build/outputs/apk/debug/app-debug.apk
